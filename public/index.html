@@ -23,16 +23,22 @@
       position: relative;
       z-index: 2;
     }
-    .trombone {
+    .raindrop {
       position: fixed;
-      top: -60px;
-      font-size: 2rem;
+      top: -80px;
       z-index: 1;
       animation: fall linear forwards;
       will-change: transform;
+      pointer-events: none;
+    }
+    .raindrop.emoji { font-size: 2rem; }
+    .raindrop.pic {
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     @keyframes fall {
-      to { transform: translateY(110vh) rotate(360deg); }
+      to { transform: translateY(115vh) rotate(360deg); }
     }
     #controls {
       position: fixed;
@@ -47,7 +53,7 @@
       width: max-content;
       max-width: 90vw;
     }
-    #toggle {
+    .btn {
       appearance: none;
       border: none;
       background: #f5c518;
@@ -59,7 +65,9 @@
       cursor: pointer;
       box-shadow: 0 4px 14px rgba(0,0,0,0.4);
     }
-    #toggle:active { transform: scale(0.96); }
+    .btn.secondary { background: #2a2a2e; color: #f5f5f5; }
+    .btn:active { transform: scale(0.96); }
+    #buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
     #status {
       color: #aaa;
       font-size: 0.85rem;
@@ -121,7 +129,10 @@
   <img src="tmo_okos.png" alt="Proof of ownership">
 
   <div id="controls">
-    <button id="toggle">▶ Play</button>
+    <div id="buttons">
+      <button id="toggle" class="btn">▶ Play</button>
+      <button id="rainToggle" class="btn secondary">🖼️ Rain her photo</button>
+    </div>
     <span id="status">🔊 click anywhere</span>
   </div>
 
@@ -259,18 +270,46 @@
       }
     }, 1000);
 
-    // ---------- Rain trombones (runs behind the curtain the whole time) ----------
-    function dropTrombone() {
-      const el = document.createElement('div');
-      el.className = 'trombone';
-      el.textContent = '🎺';
+    // ---------- Rain: trumpets 🎺 or her photo (toggleable) ----------
+    const PHOTO = 'juhaszhajnalka.png';
+    let rainMode = 'trumpet'; // 'trumpet' | 'photo'
+
+    // Preload the photo so switching is instant (it's not on screen otherwise).
+    const preload = new Image();
+    preload.src = PHOTO;
+
+    function dropRain() {
+      let el;
+      if (rainMode === 'photo') {
+        el = document.createElement('img');
+        el.src = PHOTO;
+        el.className = 'raindrop pic';
+        el.style.width = (40 + Math.random() * 130) + 'px'; // different sizes
+      } else {
+        el = document.createElement('div');
+        el.className = 'raindrop emoji';
+        el.textContent = '🎺';
+        el.style.fontSize = (1.2 + Math.random() * 2.5) + 'rem';
+      }
       el.style.left = Math.random() * 100 + 'vw';
-      el.style.fontSize = (1.2 + Math.random() * 2.5) + 'rem';
       el.style.animationDuration = (2.5 + Math.random() * 3) + 's';
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 6000);
     }
-    setInterval(dropTrombone, 200);
+    setInterval(dropRain, 200);
+
+    // Toggle button: switch what falls from the sky.
+    const rainToggle = document.getElementById('rainToggle');
+    rainToggle.addEventListener('click', () => {
+      unlockAudio(); // clicking a control also unlocks audio
+      if (rainMode === 'trumpet') {
+        rainMode = 'photo';
+        rainToggle.textContent = '🎺 Rain trumpets';
+      } else {
+        rainMode = 'trumpet';
+        rainToggle.textContent = '🖼️ Rain her photo';
+      }
+    });
   </script>
 </body>
 </html>
