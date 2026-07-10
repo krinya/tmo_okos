@@ -61,37 +61,14 @@
       font-size: 0.85rem;
       min-width: 5rem;
     }
-    #gate {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      background: rgba(0,0,0,0.75);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      color: #fff;
-      cursor: pointer;
-      transition: opacity 0.4s;
-    }
-    #gate .big { font-size: 3rem; }
-    #gate .txt { font-size: 1.3rem; font-weight: 600; }
-    #gate .sub { font-size: 0.9rem; color: #bbb; }
   </style>
 </head>
 <body>
   <img src="tmo_okos.png" alt="Proof of ownership">
 
-  <div id="gate">
-    <div class="big">🎺</div>
-    <div class="txt">Tap anywhere to start the trombones</div>
-    <div class="sub">(browsers block sound until you click — not my fault)</div>
-  </div>
-
   <div id="controls">
     <button id="toggle">▶ Play</button>
-    <span id="status"></span>
+    <span id="status">🔊 click anywhere</span>
   </div>
 
   <script>
@@ -131,7 +108,6 @@
 
     const btn = document.getElementById('toggle');
     const status = document.getElementById('status');
-    const gate = document.getElementById('gate');
 
     function updateStatus() {
       status.textContent = playing
@@ -166,24 +142,44 @@
       updateStatus();
     }
 
-    // Unlock audio on the first real user gesture, THEN start the 5x sequence.
-    // (Audio scheduled before a gesture is silently dropped by the browser.)
-    let unlocked = false;
-    function unlockAndStart() {
-      if (unlocked) return;
-      unlocked = true;
+    // Start the 5x sequence. Browsers block sound until the user interacts,
+    // so we fire on the FIRST click/key/touch anywhere on the page — no overlay,
+    // no button to hunt for. (Notes scheduled before a gesture are dropped, so
+    // we only truly start once audio is unlocked.)
+    let started = false;
+    function kickoff() {
+      if (started) return;
+      started = true;
       if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
       ctx.resume().then(start).catch(start);
-      gate.style.opacity = '0';
-      setTimeout(() => gate.remove(), 400);
+      removeListeners();
     }
 
-    gate.addEventListener('click', unlockAndStart);
-    window.addEventListener('keydown', unlockAndStart, { once: true });
+    function firstGesture(e) {
+      if (e.target === btn) return; // let the button handle itself
+      kickoff();
+    }
+    function removeListeners() {
+      document.removeEventListener('pointerdown', firstGesture);
+      document.removeEventListener('keydown', firstGesture);
+      document.removeEventListener('touchstart', firstGesture);
+    }
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!unlocked) { unlockAndStart(); return; }
+    document.addEventListener('pointerdown', firstGesture);
+    document.addEventListener('keydown', firstGesture);
+    document.addEventListener('touchstart', firstGesture);
+
+    // Optimistically try on load — works for returning visitors the browser
+    // trusts; harmless (and silently ignored) otherwise.
+    window.addEventListener('load', () => {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'running') { started = true; removeListeners(); start(); }
+    });
+
+    btn.addEventListener('click', () => {
+      started = true;
+      removeListeners();
+      if (ctx && ctx.state === 'suspended') ctx.resume();
       playing ? stop(false) : start();
     });
 
