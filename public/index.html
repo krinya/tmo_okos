@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yes, I own this domain.</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, sans-serif;
+    }
+    img {
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
+      position: relative;
+      z-index: 2;
+    }
+    .trombone {
+      position: fixed;
+      top: -60px;
+      font-size: 2rem;
+      z-index: 1;
+      animation: fall linear forwards;
+      will-change: transform;
+    }
+    @keyframes fall {
+      to { transform: translateY(110vh) rotate(360deg); }
+    }
+    #tap {
+      position: fixed;
+      bottom: 1rem;
+      width: 100%;
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+      z-index: 3;
+    }
+  </style>
+</head>
+<body>
+  <img src="tmo_okos.png" alt="Proof of ownership">
+  <div id="tap">🔊 tap anywhere for sound</div>
+
+  <script>
+    // --- Sad trombone: "wah wah wah waaaah" ---
+    let played = false;
+    function sadTrombone() {
+      if (played) return;
+      played = true;
+      document.getElementById('tap').style.display = 'none';
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Descending notes: the classic sad trombone
+      const notes = [
+        { f: 277.18, t: 0.00, d: 0.28 }, // C#4  wah
+        { f: 261.63, t: 0.30, d: 0.28 }, // C4   wah
+        { f: 246.94, t: 0.60, d: 0.28 }, // B3   wah
+        { f: 233.08, t: 0.90, d: 0.90 }, // A#3  waaaah
+      ];
+      notes.forEach(n => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(n.f, ctx.currentTime + n.t);
+        // little pitch droop on each note for that "wah" slide
+        osc.frequency.linearRampToValueAtTime(n.f * 0.94, ctx.currentTime + n.t + n.d);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + n.t);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + n.t + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.t + n.d);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + n.t);
+        osc.stop(ctx.currentTime + n.t + n.d + 0.05);
+      });
+    }
+
+    // --- Rain trombones ---
+    function dropTrombone() {
+      const el = document.createElement('div');
+      el.className = 'trombone';
+      el.textContent = '🎺';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.fontSize = (1.2 + Math.random() * 2.5) + 'rem';
+      el.style.animationDuration = (2.5 + Math.random() * 3) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 6000);
+    }
+    setInterval(dropTrombone, 200);
+
+    // Try autoplay; fall back to first interaction (browsers block silent autoplay)
+    window.addEventListener('load', sadTrombone);
+    document.addEventListener('click', sadTrombone);
+    document.addEventListener('touchstart', sadTrombone);
+  </script>
+</body>
+</html>
