@@ -61,13 +61,36 @@
       font-size: 0.85rem;
       min-width: 5rem;
     }
+    #gate {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: rgba(0,0,0,0.75);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      color: #fff;
+      cursor: pointer;
+      transition: opacity 0.4s;
+    }
+    #gate .big { font-size: 3rem; }
+    #gate .txt { font-size: 1.3rem; font-weight: 600; }
+    #gate .sub { font-size: 0.9rem; color: #bbb; }
   </style>
 </head>
 <body>
   <img src="tmo_okos.png" alt="Proof of ownership">
 
+  <div id="gate">
+    <div class="big">🎺</div>
+    <div class="txt">Tap anywhere to start the trombones</div>
+    <div class="sub">(browsers block sound until you click — not my fault)</div>
+  </div>
+
   <div id="controls">
-    <button id="toggle">⏸ Pause</button>
+    <button id="toggle">▶ Play</button>
     <span id="status"></span>
   </div>
 
@@ -108,6 +131,7 @@
 
     const btn = document.getElementById('toggle');
     const status = document.getElementById('status');
+    const gate = document.getElementById('gate');
 
     function updateStatus() {
       status.textContent = playing
@@ -142,16 +166,25 @@
       updateStatus();
     }
 
-    btn.addEventListener('click', () => {
-      // first click also unlocks audio if autoplay was blocked
-      playing ? stop(false) : start();
-    });
+    // Unlock audio on the first real user gesture, THEN start the 5x sequence.
+    // (Audio scheduled before a gesture is silently dropped by the browser.)
+    let unlocked = false;
+    function unlockAndStart() {
+      if (unlocked) return;
+      unlocked = true;
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume().then(start).catch(start);
+      gate.style.opacity = '0';
+      setTimeout(() => gate.remove(), 400);
+    }
 
-    // Try to autoplay on load; browsers may block until first interaction.
-    window.addEventListener('load', () => {
-      start();
-      // If audio context got blocked, the first tap anywhere resumes it.
-      document.addEventListener('click', () => { if (ctx && ctx.state === 'suspended') ctx.resume(); }, { once: true });
+    gate.addEventListener('click', unlockAndStart);
+    window.addEventListener('keydown', unlockAndStart, { once: true });
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!unlocked) { unlockAndStart(); return; }
+      playing ? stop(false) : start();
     });
 
     // ---------- Rain trombones ----------
