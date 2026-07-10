@@ -1,6 +1,0 @@
-- generic [active] [ref=e1]:
-  - img "Proof of ownership" [ref=e2]
-  - generic [ref=e3]:
-    - button "▶ Play" [ref=e4] [cursor=pointer]
-    - generic [ref=e5]: 🔊 click anywhere
-  - generic [ref=e6]: 🎺
