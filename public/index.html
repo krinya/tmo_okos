@@ -33,31 +33,51 @@
     @keyframes fall {
       to { transform: translateY(110vh) rotate(360deg); }
     }
-    #tap {
+    #controls {
       position: fixed;
-      bottom: 1rem;
-      width: 100%;
-      text-align: center;
-      color: #888;
-      font-size: 0.9rem;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    #toggle {
+      appearance: none;
+      border: none;
+      background: #f5c518;
+      color: #111;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    #toggle:active { transform: scale(0.96); }
+    #status {
+      color: #888;
+      font-size: 0.85rem;
+      min-width: 5rem;
     }
   </style>
 </head>
 <body>
   <img src="tmo_okos.png" alt="Proof of ownership">
-  <div id="tap">🔊 tap anywhere for sound</div>
+
+  <div id="controls">
+    <button id="toggle">⏸ Pause</button>
+    <span id="status"></span>
+  </div>
 
   <script>
-    // --- Sad trombone: "wah wah wah waaaah" ---
-    let played = false;
+    // ---------- Sad trombone: "wah wah wah waaaah" ----------
+    let ctx;
     function sadTrombone() {
-      if (played) return;
-      played = true;
-      document.getElementById('tap').style.display = 'none';
-
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      // Descending notes: the classic sad trombone
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      const t0 = ctx.currentTime;
       const notes = [
         { f: 277.18, t: 0.00, d: 0.28 }, // C#4  wah
         { f: 261.63, t: 0.30, d: 0.28 }, // C4   wah
@@ -68,19 +88,73 @@
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(n.f, ctx.currentTime + n.t);
-        // little pitch droop on each note for that "wah" slide
-        osc.frequency.linearRampToValueAtTime(n.f * 0.94, ctx.currentTime + n.t + n.d);
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime + n.t);
-        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + n.t + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.t + n.d);
+        osc.frequency.setValueAtTime(n.f, t0 + n.t);
+        osc.frequency.linearRampToValueAtTime(n.f * 0.94, t0 + n.t + n.d);
+        gain.gain.setValueAtTime(0.0001, t0 + n.t);
+        gain.gain.exponentialRampToValueAtTime(0.25, t0 + n.t + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.t + n.d);
         osc.connect(gain).connect(ctx.destination);
-        osc.start(ctx.currentTime + n.t);
-        osc.stop(ctx.currentTime + n.t + n.d + 0.05);
+        osc.start(t0 + n.t);
+        osc.stop(t0 + n.t + n.d + 0.05);
       });
     }
 
-    // --- Rain trombones ---
+    // ---------- Play 5 times with a pause between, plus play/pause control ----------
+    const MAX_PLAYS = 5;
+    const GAP_MS = 2600; // trombone (~1.8s) + short pause
+    let playsDone = 0;
+    let playing = false;
+    let timer = null;
+
+    const btn = document.getElementById('toggle');
+    const status = document.getElementById('status');
+
+    function updateStatus() {
+      status.textContent = playing
+        ? `Playing ${playsDone}/${MAX_PLAYS}`
+        : (playsDone >= MAX_PLAYS ? 'Done' : 'Paused');
+    }
+
+    function tick() {
+      if (!playing) return;
+      if (playsDone >= MAX_PLAYS) {
+        stop(true);
+        return;
+      }
+      sadTrombone();
+      playsDone++;
+      updateStatus();
+      timer = setTimeout(tick, GAP_MS);
+    }
+
+    function start() {
+      // if the run already finished, restart from the top
+      if (playsDone >= MAX_PLAYS) playsDone = 0;
+      playing = true;
+      btn.textContent = '⏸ Pause';
+      tick();
+    }
+
+    function stop(finished) {
+      playing = false;
+      clearTimeout(timer);
+      btn.textContent = finished && playsDone >= MAX_PLAYS ? '🔁 Replay' : '▶ Play';
+      updateStatus();
+    }
+
+    btn.addEventListener('click', () => {
+      // first click also unlocks audio if autoplay was blocked
+      playing ? stop(false) : start();
+    });
+
+    // Try to autoplay on load; browsers may block until first interaction.
+    window.addEventListener('load', () => {
+      start();
+      // If audio context got blocked, the first tap anywhere resumes it.
+      document.addEventListener('click', () => { if (ctx && ctx.state === 'suspended') ctx.resume(); }, { once: true });
+    });
+
+    // ---------- Rain trombones ----------
     function dropTrombone() {
       const el = document.createElement('div');
       el.className = 'trombone';
@@ -92,11 +166,6 @@
       setTimeout(() => el.remove(), 6000);
     }
     setInterval(dropTrombone, 200);
-
-    // Try autoplay; fall back to first interaction (browsers block silent autoplay)
-    window.addEventListener('load', sadTrombone);
-    document.addEventListener('click', sadTrombone);
-    document.addEventListener('touchstart', sadTrombone);
   </script>
 </body>
 </html>
